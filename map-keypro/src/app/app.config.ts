@@ -4,6 +4,8 @@ import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
 import { JwtModuleOptions, JWT_OPTIONS, JwtHelperService, JwtInterceptor } from '@auth0/angular-jwt';
 import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { provideAnimations } from '@angular/platform-browser/animations';
+import { provideToastr, ToastrModule } from 'ngx-toastr';
 
 export function tokenGetter() {
   return localStorage.getItem('token');
@@ -21,6 +23,8 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
+    provideAnimations(),
+    provideToastr(),
     provideHttpClient(withInterceptorsFromDi()),
     {
       provide: JWT_OPTIONS,

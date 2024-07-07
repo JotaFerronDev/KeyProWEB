@@ -4,6 +4,7 @@ import { AuthService } from '../../services/auth.service';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { ToastrService } from 'ngx-toastr';
 
 @Component({
   selector: 'app-login',
@@ -18,12 +19,18 @@ export class LoginComponent {
     password: ''
   };
 
-  constructor(private authService: AuthService, private router: Router) { }
+  constructor(private authService: AuthService, private router: Router, private toastr: ToastrService) { }
 
   login() {
-    this.authService.login(this.user).subscribe((response: any) => {
-      localStorage.setItem('token', response.token);
-      this.router.navigate(['map']);
-    });
+    this.authService.login(this.user).subscribe(
+      (response: any) => {
+        localStorage.setItem('token', response.access_token);
+        this.toastr.success('Login successful');
+        this.router.navigate(['map']);
+      },
+      (error) => {
+        this.toastr.error('Login failed');
+      }
+    );
   }
 }

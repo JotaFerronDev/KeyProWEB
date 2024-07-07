@@ -5,7 +5,7 @@ import { RegisterComponent } from './components/register/register.component';
 import { AuthGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
-    { path: 'map', component: MapComponent },
+    { path: 'map', component: MapComponent, canActivate: [AuthGuard]},
     { path: 'login', component: LoginComponent },
     { path: 'register', component: RegisterComponent },
     { path: '**', redirectTo: 'login' }

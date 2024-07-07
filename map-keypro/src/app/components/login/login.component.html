@@ -1,7 +1,12 @@
 <!-- src/app/components/login/login.component.html -->
-<form (submit)="login()">
-    <input type="email" [(ngModel)]="user.email" placeholder="Email" name="email">
-    <input type="password" [(ngModel)]="user.password" placeholder="Password" name="password">
-    <button type="submit">Login</button>
-  </form>
-  
+<form (submit)="login()" class="container mt-5">
+  <div class="mb-3">
+    <label for="email" class="form-label">Email</label>
+    <input type="email" class="form-control" id="email" [(ngModel)]="user.email" name="email" required>
+  </div>
+  <div class="mb-3">
+    <label for="password" class="form-label">Password</label>
+    <input type="password" class="form-control" id="password" [(ngModel)]="user.password" name="password" required>
+  </div>
+  <button type="submit" class="btn btn-primary">Login</button>
+</form>

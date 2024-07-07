@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "ng serve --proxy-config proxy.conf.json",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
@@ -19,6 +19,8 @@
     "@angular/platform-browser-dynamic": "^18.0.0",
     "@angular/router": "^18.0.0",
     "@auth0/angular-jwt": "^5.2.0",
+    "bootstrap": "^5.3.3",
+    "ngx-toastr": "^19.0.0",
     "ol": "^9.2.4",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
