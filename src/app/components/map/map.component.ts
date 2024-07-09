@@ -1,15 +1,13 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth.service';
 import { CommonModule } from '@angular/common';
 import * as L from 'leaflet';
-import { Marker } from '../../models/marker.model';
 import { CustomMarkerOptions } from '../../models/custom-marker-options.model';
 import { ApiResponse } from '../../models/api-reponse.model';
 import { CustomMarker } from '../../models/custom-marker.model';
+import { MarkerService } from '../../services/marker.service';
 
 @Component({
   selector: 'app-map',
@@ -24,7 +22,7 @@ export class MapComponent implements OnInit {
   markers: L.Marker<CustomMarkerOptions>[] = [];
 
   constructor(
-    private http: HttpClient,
+    private marker_service: MarkerService,
     private toastr: ToastrService,
     private fb: FormBuilder,
     private authService: AuthService,
@@ -57,7 +55,7 @@ export class MapComponent implements OnInit {
   }
 
   loadMarkers() {
-    this.http.get<Marker[]>(`${environment.apiUrl}/markers`).subscribe(
+    this.marker_service.get_markers().subscribe(
       (markers) => {
         markers.forEach(marker => {
           const coordinates = marker.geom.coordinates;
@@ -100,7 +98,7 @@ export class MapComponent implements OnInit {
       user_id: this.authService.getUserId() as string
     };
 
-    this.http.post<ApiResponse>(`${environment.apiUrl}/markers`, marker).subscribe(
+    this.marker_service.register_marker(marker).subscribe(
       (response: ApiResponse) => {
         (leafletMarker as CustomMarker).options.id = response.id;
         (leafletMarker as CustomMarker).options.user_id = response.user_id;
