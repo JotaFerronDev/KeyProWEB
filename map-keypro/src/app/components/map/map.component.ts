@@ -1,23 +1,15 @@
-// src/app/components/mapa/mapa.component.ts
-import { Component, OnInit } from '@angular/core';
-import 'ol/ol.css';
-import Map from 'ol/Map';
-import View from 'ol/View';
-import TileLayer from 'ol/layer/Tile';
-import OSM from 'ol/source/OSM';
-import VectorSource from 'ol/source/Vector';
-import VectorLayer from 'ol/layer/Vector';
-import { fromLonLat, toLonLat } from 'ol/proj';
-import Feature from 'ol/Feature';
-import Point from 'ol/geom/Point';
-import { Icon, Style } from 'ol/style';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { CommonModule } from '@angular/common';
-import { Marker } from '../../models/marker.mode';
+import { FormBuilder, FormGroup } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth.service';
-import { FormBuilder, FormGroup } from '@angular/forms';
+import { CommonModule } from '@angular/common';
+import * as L from 'leaflet';
+import { Marker } from '../../models/marker.model';
+import { CustomMarkerOptions } from '../../models/custom-marker-options.model';
+import { ApiResponse } from '../../models/api-reponse.model';
+import { CustomMarker } from '../../models/custom-marker.model';
 
 @Component({
   selector: 'app-map',
@@ -27,13 +19,16 @@ import { FormBuilder, FormGroup } from '@angular/forms';
   styleUrls: ['./map.component.css']
 })
 export class MapComponent implements OnInit {
-  map!: Map;
-  vectorSource!: VectorSource;
+  map!: L.Map;
   markerForm: FormGroup;
-  selectedFeature: Feature | null = null;
+  markers: L.Marker<CustomMarkerOptions>[] = [];
 
-  constructor(private authService: AuthService, private http: HttpClient, private toastr: ToastrService, private fb: FormBuilder) {
-    this.vectorSource = new VectorSource();
+  constructor(
+    private http: HttpClient,
+    private toastr: ToastrService,
+    private fb: FormBuilder,
+    private authService: AuthService,
+  ) {
     this.markerForm = this.fb.group({
       name: [''],
       description: ['']
@@ -41,54 +36,38 @@ export class MapComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    const vectorLayer = new VectorLayer({
-      source: this.vectorSource,
-      style: new Style({
-        image: new Icon({
-          anchor: [0.5, 1],
-          src: 'assets/marker.png'
-        })
-      })
-    });
+    this.map = L.map('map', {
+      doubleClickZoom: false
+    }).setView([40, 20], 4);
 
-    this.map = new Map({
-      target: 'map',
-      layers: [
-        new TileLayer({
-          source: new OSM()
-        }),
-        vectorLayer
-      ],
-      view: new View({
-        center: fromLonLat([0, 0]),
-        zoom: 2
-      })
-    });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(this.map);
 
     this.map.on('click', (event) => {
-      const coordinates = event.coordinate;
+      const coordinates = [event.latlng.lng, event.latlng.lat];
       this.addMarkerPrompt(coordinates);
     });
 
-    this.map.on('dblclick', (event) => {
-      const coordinates = event.coordinate;
-      this.editMarkerPrompt(coordinates);
-    });
-
     this.loadMarkers();
+  }
+
+  ngOnDestroy(): void {
+    this.map.remove();
   }
 
   loadMarkers() {
     this.http.get<Marker[]>(`${environment.apiUrl}/markers`).subscribe(
       (markers) => {
         markers.forEach(marker => {
-          const feature = new Feature({
-            geometry: new Point(fromLonLat([marker.geom.coordinates[0], marker.geom.coordinates[1]])),
-            name: marker.name,
-            description: marker.description,
+          const coordinates = marker.geom.coordinates;
+          const leafletMarker = L.marker([coordinates[1], coordinates[0]], {
+            id: marker.id,
             user_id: marker.user_id
-          });
-          this.vectorSource.addFeature(feature);
+          } as CustomMarker['options'])
+            .addTo(this.map)
+            .bindPopup(`<b>${marker.name}</b><br>${marker.description}`)
+          this.markers.push(leafletMarker);
         });
         this.toastr.success('Markers loaded successfully');
       },
@@ -99,18 +78,17 @@ export class MapComponent implements OnInit {
   }
 
   addMarkerPrompt(coordinates: any) {
-    const name = prompt('Enter marker name:');
-    const description = prompt('Enter marker description:');
+    let name = prompt('Enter a marker name:');
+    let description = prompt('Enter a marker description:');
     if (name && description) {
       this.addMarker(coordinates, name, description);
     }
   }
 
   addMarker(coordinates: any, name: string, description: string) {
-    const feature = new Feature({
-      geometry: new Point(fromLonLat(coordinates))
-    });
-    this.vectorSource.addFeature(feature);
+    const leafletMarker = L.marker([coordinates[1], coordinates[0]])
+      .addTo(this.map)
+      .bindPopup(`<b>${name}</b><br>${description}`);
 
     const marker = {
       name: name,
@@ -122,55 +100,18 @@ export class MapComponent implements OnInit {
       user_id: this.authService.getUserId() as string
     };
 
-    this.http.post(`${environment.apiUrl}/markers`, marker).subscribe(
-      () => {
+    this.http.post<ApiResponse>(`${environment.apiUrl}/markers`, marker).subscribe(
+      (response: ApiResponse) => {
+        (leafletMarker as CustomMarker).options.id = response.id;
+        (leafletMarker as CustomMarker).options.user_id = response.user_id;
+        this.markers.push(leafletMarker as CustomMarker);
         this.toastr.success('Marker added successfully');
       },
       (error) => {
         this.toastr.error('Failed to add marker');
+        this.map.removeLayer(leafletMarker);
       }
     );
-  }
-
-  editMarkerPrompt(coordinates: any) {
-    const feature = this.vectorSource.getClosestFeatureToCoordinate(fromLonLat(coordinates));
-    if (feature) {
-      this.selectedFeature = feature;
-      const name = prompt('Enter new marker name:', feature.get('name'));
-      const description = prompt('Enter new marker description:', feature.get('description'));
-      if (name && description) {
-        this.editMarker(coordinates, name, description);
-      }
-    }
-  }
-
-  editMarker(coordinates: any, name: string, description: string) {
-    if (this.selectedFeature) {
-      const geometry = this.selectedFeature.getGeometry();
-      if (geometry instanceof Point) {
-        const oldCoordinates = geometry.getCoordinates();
-        this.selectedFeature.setGeometry(new Point(fromLonLat(coordinates)));
-
-        const marker = {
-          name: name,
-          description: description,
-          geom: {
-            type: 'Point',
-            coordinates: coordinates
-          },
-          user_id: this.authService.getUserId() as string
-        };
-
-        this.http.put(`${environment.apiUrl}/markers/${this.selectedFeature.get('id')}`, marker).subscribe(
-          () => {
-            this.toastr.success('Marker edited successfully');
-          },
-          (error) => {
-            this.toastr.error('Failed to edit marker');
-          }
-        );
-      }
-    }
   }
 
   logout() {
